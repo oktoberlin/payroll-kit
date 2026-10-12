@@ -180,11 +180,17 @@ class PayrollRun(models.Model):
     status = models.CharField(max_length=10, choices=STATUSES, default=DRAFT)
     input_hash = models.CharField(max_length=64, blank=True)
     calculated_at = models.DateTimeField(null=True, blank=True)
+    calculated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -254,6 +260,7 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=50)
     object_type = models.CharField(max_length=50)
     object_id = models.CharField(max_length=50)
+    object_label = models.CharField(max_length=200, blank=True, default="")  # human name, survives deletes
     changes = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

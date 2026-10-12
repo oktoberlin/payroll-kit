@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from payroll import views
@@ -13,4 +14,4 @@ router.register("payroll-runs", views.PayrollRunViewSet, basename="payrollrun")
 router.register("payslips", views.PayslipViewSet, basename="payslip")
 router.register("audit-logs", views.AuditLogViewSet, basename="auditlog")
 
-urlpatterns = router.urls
+urlpatterns = [path("auth/me/", views.MeView.as_view(), name="me"), *router.urls]

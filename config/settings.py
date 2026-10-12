@@ -19,6 +19,8 @@ if not DEBUG and SECRET_KEY in INSECURE_KEYS:
     raise ImproperlyConfigured(
         "Set DJANGO_SECRET_KEY to a long random value (or DJANGO_DEBUG=1 for local dev)."
     )
+# Shared secret the web UI's server sends with the real client IP (see payroll/throttling.py).
+PROXY_IP_SECRET = os.environ.get("PROXY_IP_SECRET", "")
 # Set DJANGO_HTTPS=1 when served over HTTPS (behind Caddy): secure cookies, HSTS, proxy header.
 HTTPS = os.environ.get("DJANGO_HTTPS", "0") == "1"
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
@@ -103,8 +105,8 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "COERCE_DECIMAL_TO_STRING": True,
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "payroll.throttling.ProxyAnonRateThrottle",
+        "payroll.throttling.ProxyUserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {"anon": "60/min", "user": "300/min", "token": "10/min"},
 }

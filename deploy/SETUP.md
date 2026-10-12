@@ -33,7 +33,7 @@ sudo -u postgres psql -c "CREATE DATABASE payroll OWNER payroll;"
 ```bash
 sudo cp deploy/payroll.env.example /opt/payroll-hookangles/.env
 sudo chown payroll:payroll /opt/payroll-hookangles/.env && sudo chmod 600 /opt/payroll-hookangles/.env
-sudoedit /opt/payroll-hookangles/.env   # real secret key and DB password
+sudoedit /opt/payroll-hookangles/.env   # real secret key, DB password and PROXY_IP_SECRET
 ```
 
 ## 5. Migrate, collect static, seed

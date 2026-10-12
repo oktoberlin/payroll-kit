@@ -31,3 +31,10 @@ class IsStaffOrReadOwnPayslip(BasePermission):
         if m.role == Membership.EMPLOYEE:
             return request.method in SAFE_METHODS
         return True
+
+
+class HasMembership(BasePermission):
+    """Any logged-in user who belongs to a company (all three roles)."""
+
+    def has_permission(self, request, view):
+        return membership(request) is not None

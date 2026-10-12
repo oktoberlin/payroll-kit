@@ -78,6 +78,7 @@ docker compose exec api python manage.py seed_demo
 | Endpoint | Methods | Who |
 |---|---|---|
 | `/api/auth/token/`, `/api/auth/token/refresh/` | POST | anyone |
+| `/api/auth/me/` | GET (user, role, company, employee record) | any signed-in member |
 | `/api/employees/` (+ `/import/` CSV) | CRUD | admin, manager |
 | `/api/tax-tables/` (nested brackets) | CRUD | admin, manager |
 | `/api/deduction-types/`, `/api/employee-deductions/` | CRUD | admin, manager |
@@ -90,7 +91,7 @@ docker compose exec api python manage.py seed_demo
 | `/api/audit-logs/` | GET | admin |
 | `/api/schema/`, `/api/docs/`, `/api/health/` | GET | public |
 
-Notes: errors in a run (for example a negative net pay) return 400 with a message, and deleting a record that other records still reference returns 409. Linking an employee to a login (`Employee.user`) is done by the seed command or the Django admin, not through the API.
+Notes: users are shown by username everywhere (`calculated_by`, `approved_by`, `paid_by`, audit `actor`). Runs include `period`, exact `totals` and `is_stale` (a draft whose inputs changed). Employees only see payslips of approved or paid runs, and timesheets of a paid period are locked. Audit `changes` hold `{old, new}` per changed field. Errors in a run (for example a negative net pay) return 400 with a message, and deleting a record that other records still reference returns 409. Linking an employee to a login (`Employee.user`) is done by the seed command or the Django admin, not through the API.
 
 ## Deploy on a VPS
 

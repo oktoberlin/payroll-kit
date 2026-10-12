@@ -65,6 +65,7 @@ def import_employees(company, fileobj, actor=None) -> dict:
             actor=actor,
             action="employees.imported",
             obj=company,
+            label=f"{len(to_create)} employees",
             changes={"count": len(to_create)},
         )
     return {"created": len(to_create), "errors": []}

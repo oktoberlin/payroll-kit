@@ -15,6 +15,9 @@ def calculated_run(company, period, staff):
 
 
 def test_employee_sees_only_own_payslip(make_client, employee_member, calculated_run, staff):
+    from tests.factories import UserFactory
+
+    runs.approve_run(calculated_run, UserFactory())  # employees only see approved or paid runs
     mine = staff[0]
     mine.user = employee_member.user
     mine.save()

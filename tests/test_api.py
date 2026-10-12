@@ -179,10 +179,11 @@ def test_health_endpoint_is_public(client):
 def test_token_endpoint_is_rate_limited(company, monkeypatch):
     from django.core.cache import cache
     from rest_framework.test import APIClient
-    from rest_framework.throttling import ScopedRateThrottle
+
+    from payroll.throttling import ProxyScopedRateThrottle
 
     cache.clear()
-    monkeypatch.setattr(ScopedRateThrottle, "THROTTLE_RATES", {"token": "2/min"})
+    monkeypatch.setattr(ProxyScopedRateThrottle, "THROTTLE_RATES", {"token": "2/min"})
     c = APIClient()
     codes = [
         c.post(reverse("token_obtain_pair"), {"username": "x", "password": "y"}).status_code for _ in range(3)

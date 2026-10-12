@@ -1,13 +1,15 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import ProtectedError
+from django.db.models import Count, ProtectedError, Sum
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
-from rest_framework import status, viewsets
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from payroll.filters import AuditLogFilter
 from payroll.models import (
     AuditLog,
     DeductionType,
@@ -20,25 +22,46 @@ from payroll.models import (
     TaxTable,
     TimesheetEntry,
 )
-from payroll.permissions import IsCompanyAdmin, IsPayrollStaff, IsStaffOrReadOwnPayslip
+from payroll.permissions import HasMembership, IsCompanyAdmin, IsPayrollStaff, IsStaffOrReadOwnPayslip
 from payroll.serializers import (
     AssignDeductionSerializer,
     AuditLogSerializer,
     CsvUploadSerializer,
     DeductionTypeSerializer,
     EmployeeSerializer,
+    MeSerializer,
     PayPeriodSerializer,
     PayrollRunSerializer,
     PayslipDetailSerializer,
     PayslipSerializer,
     TaxTableSerializer,
     TimesheetEntrySerializer,
+    timesheet_period_is_locked,
 )
 from payroll.services import audit, runs
 from payroll.services.calculation import PayrollCalculationError
 from payroll.services.csv_import import import_employees
 from payroll.services.export import payroll_register_csv
 from payroll.services.payslip_pdf import render_payslip
+
+
+class MeView(APIView):
+    """Who is logged in, with their role and company (and employee record for self-service users)."""
+
+    permission_classes = [HasMembership]
+
+    @extend_schema(responses=MeSerializer)
+    def get(self, request):
+        member = request.user.membership
+        employee = Employee.objects.filter(company=member.company, user=request.user).first()
+        data = {
+            "id": request.user.pk,
+            "username": request.user.get_username(),
+            "role": member.role,
+            "company": member.company,
+            "employee": employee,
+        }
+        return Response(MeSerializer(data).data)
 
 
 class Conflict(APIException):
@@ -74,18 +97,20 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         extra = {"company": self.company} if self.company_field == "company" else {}
         obj = serializer.save(**extra)
         audit.record(
-            company=self.company, actor=self.request.user, action="created", obj=obj, changes=serializer.data
+            company=self.company,
+            actor=self.request.user,
+            action="created",
+            obj=obj,
+            changes=audit.created_fields(serializer.data),
         )
 
     def perform_update(self, serializer):
+        changes = audit.changed_fields(serializer.instance, serializer.validated_data)
         obj = serializer.save()
-        audit.record(
-            company=self.company,
-            actor=self.request.user,
-            action="updated",
-            obj=obj,
-            changes=serializer.validated_data and {k: str(v) for k, v in serializer.validated_data.items()},
-        )
+        if changes:  # an update that changes nothing is not worth an audit entry
+            audit.record(
+                company=self.company, actor=self.request.user, action="updated", obj=obj, changes=changes
+            )
 
     def perform_destroy(self, instance):
         audit.record(company=self.company, actor=self.request.user, action="deleted", obj=instance)
@@ -96,6 +121,8 @@ class EmployeeViewSet(CompanyScopedViewSet):
     queryset = Employee.objects.prefetch_related("deductions")
     serializer_class = EmployeeSerializer
     filterset_fields = ["pay_type", "is_active"]
+    filter_backends = [*CompanyScopedViewSet.filter_backends, filters.SearchFilter]
+    search_fields = ["employee_number", "first_name", "last_name", "email"]
 
     @extend_schema(request={"multipart/form-data": CsvUploadSerializer}, responses={200: dict})
     @action(detail=False, methods=["post"], parser_classes=[MultiPartParser], url_path="import")
@@ -135,12 +162,29 @@ class TimesheetEntryViewSet(CompanyScopedViewSet):
     company_field = "employee__company"
     filterset_fields = ["pay_period", "employee"]
 
+    def perform_destroy(self, instance):
+        if timesheet_period_is_locked(instance.pay_period):
+            raise ValidationError({"pay_period": "This pay period is paid and locked."})
+        super().perform_destroy(instance)
+
 
 class PayrollRunViewSet(CompanyScopedViewSet):
     """Runs are created empty, then moved through calculate -> approve -> pay."""
 
     http_method_names = ["get", "post", "delete", "head", "options"]
-    queryset = PayrollRun.objects.select_related("pay_period")
+    queryset = (
+        PayrollRun.objects.select_related("pay_period", "calculated_by", "approved_by", "paid_by")
+        .annotate(
+            n_payslips=Count("payslips"),
+            t_gross=Sum("payslips__gross"),
+            t_pre_tax_deductions=Sum("payslips__pre_tax_deductions"),
+            t_tax=Sum("payslips__tax"),
+            t_post_tax_deductions=Sum("payslips__post_tax_deductions"),
+            t_employer_benefits=Sum("payslips__employer_benefits"),
+            t_net=Sum("payslips__net"),
+        )
+        .order_by("-pay_period__start_date", "-id")
+    )
     serializer_class = PayrollRunSerializer
     filterset_fields = ["status", "pay_period"]
 
@@ -196,7 +240,11 @@ class PayslipViewSet(viewsets.ReadOnlyModelViewSet):
             .prefetch_related("lines")
         )
         if m.role == Membership.EMPLOYEE:
-            qs = qs.filter(employee__user=self.request.user)
+            # employees see only their own payslips, and only once the run is approved or paid
+            qs = qs.filter(
+                employee__user=self.request.user,
+                run__status__in=[PayrollRun.APPROVED, PayrollRun.PAID],
+            )
         return qs
 
     @extend_schema(responses={(200, "application/pdf"): bytes})
@@ -211,7 +259,7 @@ class PayslipViewSet(viewsets.ReadOnlyModelViewSet):
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AuditLogSerializer
     permission_classes = [IsCompanyAdmin]
-    filterset_fields = ["action", "object_type"]
+    filterset_class = AuditLogFilter
 
     def get_queryset(self):
-        return AuditLog.objects.filter(company=self.request.user.membership.company)
+        return AuditLog.objects.filter(company=self.request.user.membership.company).select_related("actor")

@@ -6,11 +6,27 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from payroll.models import PayrollRun, Payslip, PayslipLine, TimesheetEntry
 from payroll.services import audit
 from payroll.services.calculation import DeductionRule, PayInput, TaxBracket, calculate_pay
+
+TOTAL_FIELDS = ["gross", "pre_tax_deductions", "tax", "post_tax_deductions", "employer_benefits", "net"]
+
+
+def run_totals(run: PayrollRun) -> dict[str, Decimal]:
+    """Sum of every payslip column in the run, as Decimals (never floats)."""
+    sums = run.payslips.aggregate(**{name: Sum(name) for name in TOTAL_FIELDS})
+    return {name: sums[name] or Decimal("0.00") for name in TOTAL_FIELDS}
+
+
+def is_stale(run: PayrollRun) -> bool:
+    """A draft whose inputs changed since it was last calculated (it cannot be approved as is)."""
+    if run.status != PayrollRun.DRAFT or not run.input_hash:
+        return False
+    return hash_inputs(build_inputs(run)) != run.input_hash
 
 
 def proration_factor(employee, period) -> Decimal:
@@ -126,6 +142,7 @@ def calculate_run(run: PayrollRun, actor=None) -> tuple[PayrollRun, bool]:
 
     run.input_hash = digest
     run.calculated_at = timezone.now()
+    run.calculated_by = actor if getattr(actor, "is_authenticated", False) else None
     run.save()
     audit.record(
         company=run.company,
@@ -174,6 +191,7 @@ def mark_paid(run: PayrollRun, actor) -> PayrollRun:
         raise ValidationError("Only approved runs can be marked paid.")
     run.status = PayrollRun.PAID
     run.paid_at = timezone.now()
+    run.paid_by = actor
     run.save()
     audit.record(company=run.company, actor=actor, action="payroll_run.paid", obj=run)
     return run

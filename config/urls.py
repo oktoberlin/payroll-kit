@@ -3,14 +3,15 @@ from django.db import connection
 from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from payroll.throttling import ProxyScopedRateThrottle
 
 
 class ThrottledTokenObtainPairView(TokenObtainPairView):
     """Login endpoint with its own stricter rate limit (scope "token")."""
 
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [ProxyScopedRateThrottle]
     throttle_scope = "token"
 
 
