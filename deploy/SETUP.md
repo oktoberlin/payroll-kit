@@ -4,11 +4,12 @@ Same pattern as the invoice, reply and handoff apps: a system user, a venv, an e
 worker under systemd, an nginx site and a certbot certificate, with a database on the shared Postgres 17.
 No Docker. Nothing here touches the other apps' services, databases or nginx sites.
 
-Placeholders: domain `payroll.hookangles.com`, directory `/opt/payroll-hookangles`, port `8013`.
+The API lives at api.payroll.hookangles.com; payroll.hookangles.com is kept free for the UI later.
+Placeholders: domain `api.payroll.hookangles.com`, directory `/opt/payroll-hookangles`, port `8013`.
 Check that the port is free first: `ss -ltn | grep 8013`.
 
 ## 1. DNS
-Add an `A` record `payroll` -> the VPS IP. At Namecheap, `setHosts` replaces the whole zone: call
+Add an `A` record `api.payroll` -> the VPS IP. At Namecheap, `setHosts` replaces the whole zone: call
 `getHosts` first and send back every existing record plus the new one.
 
 ## 2. User, code, venv
@@ -54,10 +55,10 @@ If you get `400 Bad Request`, the Host header isn't allowed: keep `localhost` in
 
 ## 7. nginx and HTTPS
 ```bash
-sudo cp deploy/nginx-payroll.conf /etc/nginx/sites-available/payroll.hookangles.com
-sudo ln -s /etc/nginx/sites-available/payroll.hookangles.com /etc/nginx/sites-enabled/
+sudo cp deploy/nginx-payroll.conf /etc/nginx/sites-available/api.payroll.hookangles.com
+sudo ln -s /etc/nginx/sites-available/api.payroll.hookangles.com /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d payroll.hookangles.com
+sudo certbot --nginx -d api.payroll.hookangles.com
 ```
 
 ## 8. Nightly demo reset
@@ -69,7 +70,7 @@ Check later with `journalctl -t payroll-demo-reset`. `seed_demo --reset` deletes
 company and the three demo users, so it must only ever read this app's `.env`.
 
 ## 9. Verify
-- `https://payroll.hookangles.com/api/docs/` loads; log in as `demo_manager`, calculate the run.
+- `https://api.payroll.hookangles.com/api/docs/` loads; log in as `demo_manager`, calculate the run.
 - `systemctl status payroll invoices reply handoff` all active; the other sites still load.
 - `free -m` and `systemctl status payroll` (Memory line) show the new footprint, expect about 100-150 MB.
 
