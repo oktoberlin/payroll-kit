@@ -11,7 +11,13 @@ from django.utils import timezone
 
 from payroll.models import PayrollRun, Payslip, PayslipLine, TimesheetEntry
 from payroll.services import audit
-from payroll.services.calculation import DeductionRule, PayInput, TaxBracket, calculate_pay
+from payroll.services.calculation import (
+    DeductionRule,
+    PayInput,
+    PayrollCalculationError,
+    TaxBracket,
+    calculate_pay,
+)
 
 TOTAL_FIELDS = [
     "gross",
@@ -123,8 +129,15 @@ def calculate_run(run: PayrollRun, actor=None) -> tuple[PayrollRun, bool]:
         return run, False
 
     run.payslips.all().delete()
+    people = run.company.employees.in_bulk(list(inputs))
     for employee_id, pay_input in inputs.items():
-        result = calculate_pay(pay_input)
+        try:
+            result = calculate_pay(pay_input)
+        except PayrollCalculationError as exc:
+            who = people[employee_id]
+            raise PayrollCalculationError(
+                f"{who.employee_number} {who.first_name} {who.last_name}: {exc}"
+            ) from exc
         slip = Payslip.objects.create(
             run=run,
             employee_id=employee_id,
@@ -175,7 +188,16 @@ def approve_run(run: PayrollRun, actor) -> PayrollRun:
     run.approved_by = actor
     run.approved_at = timezone.now()
     run.save()
-    audit.record(company=run.company, actor=actor, action="payroll_run.approved", obj=run)
+    audit.record(
+        company=run.company,
+        actor=actor,
+        action="payroll_run.approved",
+        obj=run,
+        changes={
+            "status": {"old": PayrollRun.DRAFT, "new": PayrollRun.APPROVED},
+            "approved_by": {"new": actor.get_username()},
+        },
+    )
     return run
 
 
@@ -184,11 +206,21 @@ def reopen_run(run: PayrollRun, actor) -> PayrollRun:
     run = PayrollRun.objects.select_for_update().get(pk=run.pk)
     if run.status != PayrollRun.APPROVED:
         raise ValidationError("Only approved (unpaid) runs can be reopened.")
+    approver = run.approved_by.get_username() if run.approved_by else None
     run.status = PayrollRun.DRAFT
     run.approved_by = None
     run.approved_at = None
     run.save()
-    audit.record(company=run.company, actor=actor, action="payroll_run.reopened", obj=run)
+    audit.record(
+        company=run.company,
+        actor=actor,
+        action="payroll_run.reopened",
+        obj=run,
+        changes={
+            "status": {"old": PayrollRun.APPROVED, "new": PayrollRun.DRAFT},
+            "approved_by": {"old": approver, "new": None},
+        },
+    )
     return run
 
 
@@ -201,5 +233,15 @@ def mark_paid(run: PayrollRun, actor) -> PayrollRun:
     run.paid_at = timezone.now()
     run.paid_by = actor
     run.save()
-    audit.record(company=run.company, actor=actor, action="payroll_run.paid", obj=run)
+    audit.record(
+        company=run.company,
+        actor=actor,
+        action="payroll_run.paid",
+        obj=run,
+        changes={
+            "status": {"old": PayrollRun.APPROVED, "new": PayrollRun.PAID},
+            "paid_by": {"new": actor.get_username()},
+            "paid_at": {"new": run.paid_at.isoformat()},
+        },
+    )
     return run

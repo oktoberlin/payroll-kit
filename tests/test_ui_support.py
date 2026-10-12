@@ -363,3 +363,46 @@ def test_payslips_list_newest_period_first(make_client, employee_member, admin, 
         s["period"]["start_date"] for s in make_client(employee_member).get("/api/payslips/").data["results"]
     ]
     assert dates == ["2026-03-01", "2026-02-01", "2026-01-01"] and emp
+
+
+# --- calculation errors name the employee ---------------------------------------------------------
+
+
+def test_calculation_error_names_the_employee(make_client, admin, company, period):
+    from payroll.models import DeductionType, EmployeeDeduction, PayrollRun
+
+    hourly = EmployeeFactory(
+        company=company,
+        employee_number="E004",
+        first_name="Dev",
+        last_name="Patel",
+        pay_type="hourly",
+        hourly_rate="22.50",
+        annual_salary=0,
+    )
+    health = DeductionType.objects.create(
+        company=company, code="HEALTH", name="Health", default_value="120.00", pre_tax=True
+    )
+    EmployeeDeduction.objects.create(employee=hourly, deduction_type=health)  # fixed 120 against zero hours
+    run = PayrollRun.objects.create(company=company, pay_period=period)
+    resp = make_client(admin).post(f"/api/payroll-runs/{run.pk}/calculate/")
+    assert resp.status_code == 400
+    assert "E004 Dev Patel" in str(resp.data) and "pre-tax deductions exceed gross pay" in str(resp.data)
+    assert run.payslips.count() == 0
+
+
+def test_run_transitions_record_what_changed(make_client, admin, manager, run):
+    c = make_client(admin)
+    c.post(f"/api/payroll-runs/{run.pk}/approve/")
+    c.post(f"/api/payroll-runs/{run.pk}/reopen/")
+    c.post(f"/api/payroll-runs/{run.pk}/approve/")
+    c.post(f"/api/payroll-runs/{run.pk}/mark-paid/")
+    by_action = {}
+    for e in c.get("/api/audit-logs/").data["results"]:
+        by_action.setdefault(e["action"], e)  # newest first
+    assert by_action["payroll_run.approved"]["changes"]["status"] == {"old": "draft", "new": "approved"}
+    assert by_action["payroll_run.approved"]["changes"]["approved_by"] == {"new": admin.user.username}
+    assert by_action["payroll_run.reopened"]["changes"]["status"] == {"old": "approved", "new": "draft"}
+    paid = by_action["payroll_run.paid"]["changes"]
+    assert paid["status"] == {"old": "approved", "new": "paid"}
+    assert paid["paid_by"] == {"new": admin.user.username} and "paid_at" in paid
