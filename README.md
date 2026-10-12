@@ -4,7 +4,7 @@ A multi-tenant payroll backend built with Django REST Framework: employees, pay 
 
 > **Demo project.** All data is fake, and the tax tables are **illustrative only, not tax advice**.
 
-![CI](https://github.com/<you>/payrollkit-api/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/oktoberlin/payroll-kit/actions/workflows/ci.yml/badge.svg)
 
 ## Try it
 
