@@ -1,0 +1,22 @@
+# /etc/systemd/system/payroll.service
+# Same shape as reply.service / invoices.service: one gunicorn worker on localhost.
+[Unit]
+Description=PayrollKit Django API
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=payroll
+Group=payroll
+WorkingDirectory=/opt/payroll-hookangles/backend
+EnvironmentFile=/opt/payroll-hookangles/.env
+ExecStart=/opt/payroll-hookangles/backend/.venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8012 --workers 1
+Restart=on-failure
+RestartSec=3
+# Safety net so a runaway process can never starve the other apps on this box.
+MemoryMax=400M
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

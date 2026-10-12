@@ -94,6 +94,9 @@ Notes: errors in a run (for example a negative net pay) return 400 with a messag
 
 ## Deploy on a VPS
 
+Two options. On a server that already runs nginx and Postgres (like a shared VPS), follow
+[`deploy/SETUP.md`](deploy/SETUP.md): systemd + gunicorn + nginx, no Docker. On a dedicated host, use Docker:
+
 The production stack is `docker-compose.prod.yml`: Caddy (automatic HTTPS) in front of gunicorn and Postgres 16. You need a server with Docker and a domain whose DNS A record points at it.
 
 ```bash

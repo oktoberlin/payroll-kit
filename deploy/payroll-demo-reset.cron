@@ -1,0 +1,4 @@
+# /etc/cron.d/payroll-demo-reset
+# Rebuild the demo company every night so visitors can't leave it broken.
+# Runs as the payroll user, only against the payroll database (via its .env), logs to syslog.
+0 3 * * * payroll cd /opt/payroll-hookangles/backend && set -a && . /opt/payroll-hookangles/.env && set +a && .venv/bin/python manage.py seed_demo --reset 2>&1 | logger -t payroll-demo-reset

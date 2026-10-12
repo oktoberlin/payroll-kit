@@ -1,4 +1,6 @@
-# Production stack for a single VPS: Caddy (HTTPS) -> gunicorn API -> Postgres.
+# Production stack for a DEDICATED host: Caddy (HTTPS) -> gunicorn API -> Postgres.
+# Do NOT run this on the shared VPS: Caddy binds ports 80/443, which nginx already owns.
+# For that box use the systemd + nginx files in deploy/ (see deploy/SETUP.md).
 # Usage: cp .env.example .env, edit it, then
 #   docker compose -f docker-compose.prod.yml up -d --build
 services:
