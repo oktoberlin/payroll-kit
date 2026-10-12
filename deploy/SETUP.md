@@ -48,7 +48,7 @@ sudo -u payroll bash -c 'set -a; . /opt/payroll-hookangles/.env; set +a
 ```bash
 sudo cp deploy/payroll.service /etc/systemd/system/payroll.service
 sudo systemctl daemon-reload && sudo systemctl enable --now payroll
-curl -s http://127.0.0.1:8013/api/health/    # {"status": "ok"}
+curl -s http://localhost:8013/api/health/    # {"status": "ok"}
 ```
 If you get `400 Bad Request`, the Host header isn't allowed: keep `localhost` in `DJANGO_ALLOWED_HOSTS`.
 
