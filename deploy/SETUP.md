@@ -4,8 +4,8 @@ Same pattern as the invoice, reply and handoff apps: a system user, a venv, an e
 worker under systemd, an nginx site and a certbot certificate, with a database on the shared Postgres 17.
 No Docker. Nothing here touches the other apps' services, databases or nginx sites.
 
-Placeholders: domain `payroll.hookangles.com`, directory `/opt/payroll-hookangles`, port `8012`.
-Check that the port is free first: `ss -ltn | grep 8012`.
+Placeholders: domain `payroll.hookangles.com`, directory `/opt/payroll-hookangles`, port `8013`.
+Check that the port is free first: `ss -ltn | grep 8013`.
 
 ## 1. DNS
 Add an `A` record `payroll` -> the VPS IP. At Namecheap, `setHosts` replaces the whole zone: call
@@ -48,7 +48,7 @@ sudo -u payroll bash -c 'set -a; . /opt/payroll-hookangles/.env; set +a
 ```bash
 sudo cp deploy/payroll.service /etc/systemd/system/payroll.service
 sudo systemctl daemon-reload && sudo systemctl enable --now payroll
-curl -s http://127.0.0.1:8012/api/health/    # {"status": "ok"}
+curl -s http://127.0.0.1:8013/api/health/    # {"status": "ok"}
 ```
 If you get `400 Bad Request`, the Host header isn't allowed: keep `localhost` in `DJANGO_ALLOWED_HOSTS`.
 
