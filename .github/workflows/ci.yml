@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: payrollkit
+          POSTGRES_USER: payrollkit
+          POSTGRES_PASSWORD: payrollkit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U payrollkit"
+          --health-interval 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://payrollkit:payrollkit@localhost:5432/payrollkit
+      DJANGO_DEBUG: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: black --check .
+      - run: python manage.py makemigrations --check --dry-run
+      - run: pytest

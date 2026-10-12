@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payrollkit
+      POSTGRES_USER: payrollkit
+      POSTGRES_PASSWORD: payrollkit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payrollkit"]
+      interval: 3s
+      retries: 10
+
+  api:
+    build: .
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgres://payrollkit:payrollkit@db:5432/payrollkit
+      DJANGO_DEBUG: "1"  # local dev compose; production uses docker-compose.prod.yml
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
