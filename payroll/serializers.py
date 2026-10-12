@@ -299,9 +299,9 @@ class PayrollRunSerializer(CompanyScopedSerializer):
     payslip_count = serializers.SerializerMethodField()
     totals = serializers.SerializerMethodField()
     is_stale = serializers.SerializerMethodField()
-    calculated_by = serializers.SlugRelatedField(slug_field="username", read_only=True)
-    approved_by = serializers.SlugRelatedField(slug_field="username", read_only=True)
-    paid_by = serializers.SlugRelatedField(slug_field="username", read_only=True)
+    calculated_by = serializers.CharField(source="calculated_by.username", read_only=True, allow_null=True)
+    approved_by = serializers.CharField(source="approved_by.username", read_only=True, allow_null=True)
+    paid_by = serializers.CharField(source="paid_by.username", read_only=True, allow_null=True)
 
     class Meta:
         model = PayrollRun
@@ -348,7 +348,7 @@ class PayrollRunSerializer(CompanyScopedSerializer):
 class AuditLogSerializer(serializers.ModelSerializer):
     """`changes`: field -> {"old", "new"} on updates, {"new"} on creates; service entries hold plain facts."""
 
-    actor = serializers.SlugRelatedField(slug_field="username", read_only=True)
+    actor = serializers.CharField(source="actor.username", read_only=True, allow_null=True)
 
     class Meta:
         model = AuditLog
