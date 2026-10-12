@@ -338,3 +338,27 @@ def test_employee_search(make_client, admin, company):
     ]
     assert c.get("/api/employees/", {"search": "E001"}).data["count"] == 1
     assert c.get("/api/employees/", {"search": "nobody"}).data["count"] == 0
+
+
+def test_payslips_list_newest_period_first(make_client, employee_member, admin, company):
+    from datetime import date
+
+    from payroll.models import PayrollRun
+    from payroll.services import runs
+    from tests.factories import PayPeriodFactory
+
+    emp = EmployeeFactory(company=company, user=employee_member.user)
+    for month in (1, 3, 2):
+        p = PayPeriodFactory(
+            company=company,
+            start_date=date(2026, month, 1),
+            end_date=date(2026, month, 28),
+            pay_date=date(2026, month, 28),
+        )
+        r = PayrollRun.objects.create(company=company, pay_period=p)
+        runs.calculate_run(r)
+        runs.approve_run(r, admin.user)
+    dates = [
+        s["period"]["start_date"] for s in make_client(employee_member).get("/api/payslips/").data["results"]
+    ]
+    assert dates == ["2026-03-01", "2026-02-01", "2026-01-01"] and emp

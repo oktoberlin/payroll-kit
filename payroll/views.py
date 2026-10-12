@@ -238,6 +238,7 @@ class PayslipViewSet(viewsets.ReadOnlyModelViewSet):
             Payslip.objects.filter(run__company=m.company)
             .select_related("employee", "run__pay_period", "run__company")
             .prefetch_related("lines")
+            .order_by("-run__pay_period__start_date", "employee__employee_number")
         )
         if m.role == Membership.EMPLOYEE:
             # employees see only their own payslips, and only once the run is approved or paid
