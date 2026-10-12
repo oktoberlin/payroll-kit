@@ -108,7 +108,12 @@ REST_FRAMEWORK = {
         "payroll.throttling.ProxyAnonRateThrottle",
         "payroll.throttling.ProxyUserRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"anon": "60/min", "user": "300/min", "token": "10/min"},
+    # Overridable for automated browser tests, which sign in many times a minute.
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_ANON", "60/min"),
+        "user": os.environ.get("THROTTLE_USER", "300/min"),
+        "token": os.environ.get("THROTTLE_TOKEN", "10/min"),
+    },
 }
 
 SIMPLE_JWT = {
