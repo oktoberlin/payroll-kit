@@ -8,7 +8,8 @@ A multi-tenant payroll backend built with Django REST Framework: employees, pay 
 
 ## Try it
 
-- Swagger UI: `https://<your-deploy>/api/docs/`
+- Web UI: https://payroll.hookangles.com ([source](https://github.com/oktoberlin/payroll-kit-ui))
+- Swagger UI: https://api.payroll.hookangles.com/api/docs/
 - Demo logins (password `demo-pass-123`):
 
 | User | Role | Can do |
