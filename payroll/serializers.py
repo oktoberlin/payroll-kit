@@ -286,6 +286,7 @@ class RunPeriodSerializer(serializers.ModelSerializer):
 class RunTotalsSerializer(serializers.Serializer):
     gross = serializers.DecimalField(max_digits=14, decimal_places=2)
     pre_tax_deductions = serializers.DecimalField(max_digits=14, decimal_places=2)
+    taxable = serializers.DecimalField(max_digits=14, decimal_places=2)
     tax = serializers.DecimalField(max_digits=14, decimal_places=2)
     post_tax_deductions = serializers.DecimalField(max_digits=14, decimal_places=2)
     employer_benefits = serializers.DecimalField(max_digits=14, decimal_places=2)

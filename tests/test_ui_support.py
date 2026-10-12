@@ -135,6 +135,7 @@ def test_run_detail_has_period_totals_and_actors(make_client, admin, manager, ru
     assert data["totals"] == {
         "gross": "10000.00",
         "pre_tax_deductions": "0.00",
+        "taxable": "10000.00",
         "tax": "0.00",
         "post_tax_deductions": "0.00",
         "employer_benefits": "0.00",

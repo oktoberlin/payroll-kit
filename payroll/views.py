@@ -178,6 +178,7 @@ class PayrollRunViewSet(CompanyScopedViewSet):
             n_payslips=Count("payslips"),
             t_gross=Sum("payslips__gross"),
             t_pre_tax_deductions=Sum("payslips__pre_tax_deductions"),
+            t_taxable=Sum("payslips__taxable"),
             t_tax=Sum("payslips__tax"),
             t_post_tax_deductions=Sum("payslips__post_tax_deductions"),
             t_employer_benefits=Sum("payslips__employer_benefits"),

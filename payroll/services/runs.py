@@ -13,7 +13,15 @@ from payroll.models import PayrollRun, Payslip, PayslipLine, TimesheetEntry
 from payroll.services import audit
 from payroll.services.calculation import DeductionRule, PayInput, TaxBracket, calculate_pay
 
-TOTAL_FIELDS = ["gross", "pre_tax_deductions", "tax", "post_tax_deductions", "employer_benefits", "net"]
+TOTAL_FIELDS = [
+    "gross",
+    "pre_tax_deductions",
+    "taxable",
+    "tax",
+    "post_tax_deductions",
+    "employer_benefits",
+    "net",
+]
 
 
 def run_totals(run: PayrollRun) -> dict[str, Decimal]:
